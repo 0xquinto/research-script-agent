@@ -1,0 +1,82 @@
+---
+alwaysApply: true
+---
+
+# AI Core Module Usage
+
+## Import
+
+```typescript
+// Option 1: Import from core module (recommended)
+import { ai, AICore, type ChatMessage } from './core/ai';
+
+// Option 2: Import from barrel export
+import { ai, AICore } from './core';
+```
+
+## Quick Start
+
+### Using Default Instance
+
+The `ai` instance is pre-configured with `openai/gpt-5.1-chat`:
+
+```typescript
+// Simple message
+const response = await ai.sendMessage('Hello!');
+
+// Full chat with options
+const result = await ai.chat({
+  messages: [
+    { role: 'system', content: 'You are helpful.' },
+    { role: 'user', content: 'Explain X' }
+  ],
+  temperature: 0.7,
+  maxTokens: 100
+});
+console.log(result.content, result.model, result.usage);
+```
+
+### Per-Request Model Override
+
+```typescript
+// Override model for single request
+await ai.sendMessage('Hello!', 'anthropic/claude-3.5-sonnet');
+await ai.chat({ model: 'google/gemini-pro', messages: [...] });
+```
+
+### Custom Instance
+
+```typescript
+const customAI = new AICore({
+  defaultModel: 'openai/gpt-4o-mini',
+  apiKey: 'custom-key', // optional, uses env by default
+});
+
+await customAI.sendMessage('Hello!');
+```
+
+### Multi-Turn Conversations
+
+```typescript
+const response = await ai.sendConversation([
+  { role: 'user', content: 'What is 2+2?' },
+  { role: 'assistant', content: '2+2 equals 4.' },
+  { role: 'user', content: 'What about 3+3?' }
+]);
+```
+
+## Configuration
+
+Set in `.env`:
+- `OPENROUTER_API_KEY` (required)
+- `OPENROUTER_DEFAULT_MODEL` (optional, defaults to `openai/gpt-5.1-chat`)
+- `OPENROUTER_SITE_URL` (optional, for rankings)
+- `OPENROUTER_SITE_NAME` (optional, for rankings)
+
+## Methods
+
+- `ai.sendMessage(message: string, model?: string)` → `Promise<string>`
+- `ai.sendConversation(messages: ChatMessage[], model?: string)` → `Promise<string>`
+- `ai.chat(options: ChatCompletionOptions)` → `Promise<ChatCompletionResponse>`
+- `ai.getDefaultModel()` → `string`
+- `ai.setDefaultModel(model: string)` → `void`
