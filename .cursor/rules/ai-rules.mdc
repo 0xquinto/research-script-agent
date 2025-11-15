@@ -2,9 +2,29 @@
 alwaysApply: true
 ---
 
-# AI Core Module Usage
+# Research Script Agent Architecture
 
-## Import
+## Project Structure
+
+```
+src/
+├── core/              # Core AI module - OpenRouter integration
+│   ├── ai.ts         # AICore class and default instance
+│   └── index.ts      # Barrel exports
+├── tools/             # Pluggable tools system
+│   ├── calculator.ts  # Calculator tool example
+│   ├── registry.ts    # Tool registry manager
+│   ├── types.ts       # Tool type definitions
+│   └── index.ts      # Barrel exports
+├── cli/               # CLI interface
+│   ├── chat.ts        # Interactive chat interface
+│   └── index.ts       # Barrel exports
+└── index.ts           # Main entry point
+```
+
+## Core AI Module
+
+### Import
 
 ```typescript
 // Option 1: Import from core module (recommended)
@@ -14,9 +34,7 @@ import { ai, AICore, type ChatMessage } from './core/ai';
 import { ai, AICore } from './core';
 ```
 
-## Quick Start
-
-### Using Default Instance
+### Quick Start
 
 The `ai` instance is pre-configured with `openai/gpt-5.1-chat`:
 
@@ -65,6 +83,113 @@ const response = await ai.sendConversation([
 ]);
 ```
 
+## Tools System
+
+### Using Tools
+
+Tools are automatically registered and available to the AI through the tool registry:
+
+```typescript
+import { toolRegistry } from './tools';
+
+// Get all registered tools
+const tools = toolRegistry.getAll();
+
+// Get a specific tool
+const calculator = toolRegistry.get('calculator');
+
+// Parse a tool call from AI message
+const parsedCall = toolRegistry.parseToolCall('CALL_TOOL add 2 2');
+
+// Execute a tool call
+if (parsedCall) {
+  const result = await toolRegistry.executeToolCall(parsedCall);
+}
+```
+
+### Creating a New Tool
+
+1. **Create tool file** (`src/tools/my-tool.ts`):
+
+```typescript
+import type { Tool, ToolResult } from './types';
+
+export const myTool: Tool = {
+  name: 'mytool',
+  description: 'Does something useful',
+  
+  parseCall(message: string): any | null {
+    // Parse tool call from AI message
+    // Return parsed args or null if not a match
+    if (message.includes('CALL_TOOL mytool')) {
+      // Extract arguments
+      return { arg1: 'value1', arg2: 'value2' };
+    }
+    return null;
+  },
+  
+  async execute(args: any): Promise<ToolResult> {
+    try {
+      // Execute tool logic
+      const result = /* your logic */;
+      return { success: true, result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+};
+```
+
+2. **Register tool** in `src/tools/registry.ts`:
+
+```typescript
+import { myTool } from './my-tool';
+
+constructor() {
+  this.register(calculatorTool);
+  this.register(myTool); // Add your tool
+}
+```
+
+3. **Export tool** in `src/tools/index.ts`:
+
+```typescript
+export { myTool } from './my-tool';
+```
+
+The tool will automatically be available to the AI!
+
+### Tool Interface
+
+```typescript
+interface Tool {
+  name: string;                    // Unique tool identifier
+  description: string;             // Description for AI system prompt
+  parseCall: (message: string) => any | null;  // Parse AI message
+  execute: (args: any) => Promise<ToolResult> | ToolResult;  // Execute tool
+}
+```
+
+## CLI Module
+
+### Using the Chat Interface
+
+```typescript
+import { startChat } from './cli';
+
+// Start interactive chat (uses registered tools automatically)
+await startChat();
+```
+
+The CLI automatically:
+- Loads all registered tools
+- Generates system prompt with tool descriptions
+- Handles tool calls from AI responses
+- Manages conversation context
+
 ## Configuration
 
 Set in `.env`:
@@ -73,10 +198,18 @@ Set in `.env`:
 - `OPENROUTER_SITE_URL` (optional, for rankings)
 - `OPENROUTER_SITE_NAME` (optional, for rankings)
 
-## Methods
+## Core AI Methods
 
 - `ai.sendMessage(message: string, model?: string)` → `Promise<string>`
 - `ai.sendConversation(messages: ChatMessage[], model?: string)` → `Promise<string>`
 - `ai.chat(options: ChatCompletionOptions)` → `Promise<ChatCompletionResponse>`
 - `ai.getDefaultModel()` → `string`
 - `ai.setDefaultModel(model: string)` → `void`
+
+## Architecture Principles
+
+1. **Modularity**: Core AI, tools, and CLI are separate modules
+2. **Pluggability**: Tools are registered and auto-discovered
+3. **Type Safety**: Full TypeScript support throughout
+4. **Separation of Concerns**: Each module has a single responsibility
+5. **Extensibility**: Easy to add new tools without modifying core code
